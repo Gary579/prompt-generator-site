@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text-to-Image Prompt Generator</title>
+    <title>Text-to-Image Prompt Generator v14</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,7 +21,7 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        h1 {
+        h1, h2 {
             text-align: center;
             color: #2c3e50;
         }
@@ -71,8 +71,11 @@
             padding: 15px;
             background-color: #f9f9f9;
             border-radius: 5px;
-            max-height: 300px;
+            max-height: 500px;
             overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
         }
         .custom-attributes {
             margin-top: 20px;
@@ -92,8 +95,37 @@
 </head>
 <body>
     <div class="container">
-        <h1>Text-to-Image Prompt Generator</h1>
+        <h1>Text-to-Image Prompt Generator v14</h1>
         
+        <h2>Prompt Structure</h2>
+        <div class="settings-grid">
+            <div class="setting-item">
+                <label for="positivePromptStart">Positive Prompt Start:</label>
+                <input type="text" id="positivePromptStart" value='--prompt "'>
+            </div>
+            <div class="setting-item">
+                <label for="positivePromptEnd">Positive Prompt End:</label>
+                <input type="text" id="positivePromptEnd" value='"'>
+            </div>
+            <div class="setting-item">
+                <label for="positiveSystemPrompt">Positive System Prompt:</label>
+                <textarea id="positiveSystemPrompt">(best quality, masterpiece), solo, upper body, clean background, flat2D, (an extremely delicate and beautiful), (soft color:1.2)</textarea>
+            </div>
+            <div class="setting-item">
+                <label for="negativePromptStart">Negative Prompt Start:</label>
+                <input type="text" id="negativePromptStart" value='--negative_prompt "'>
+            </div>
+            <div class="setting-item">
+                <label for="negativePromptEnd">Negative Prompt End:</label>
+                <input type="text" id="negativePromptEnd" value='"'>
+            </div>
+            <div class="setting-item">
+                <label for="negativeSystemPrompt">Negative System Prompt:</label>
+                <textarea id="negativeSystemPrompt">worst quality, low quality, bad_pictures</textarea>
+            </div>
+        </div>
+
+        <h2>Generation Settings</h2>
         <div class="settings-grid">
             <div class="setting-item">
                 <label for="totalPrompts">Total prompts:</label>
@@ -103,6 +135,10 @@
                 <label for="boyPercentage">Percentage of boys: <span id="boyPercentageValue">50</span>%</label>
                 <input type="range" id="boyPercentage" min="0" max="100" value="50">
             </div>
+        </div>
+
+        <h2>Attributes</h2>
+        <div class="settings-grid">
             <div class="setting-item">
                 <label for="faces">Faces:</label>
                 <textarea id="faces">smile face, swag smile face, naughty face</textarea>
@@ -130,8 +166,6 @@
         <div class="button-group">
             <button onclick="addCustomAttribute()">Add Attribute</button>
             <button onclick="generateBatchPrompts()">Generate Prompts</button>
-            <button onclick="downloadTxt()">Download TXT</button>
-            <button onclick="downloadCsv()">Download CSV</button>
         </div>
 
         <div id="preview"></div>
@@ -143,6 +177,10 @@
 
         function getArrayFromTextarea(id) {
             return document.getElementById(id).value.split(',').map(item => item.trim()).filter(item => item !== '');
+        }
+
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
         }
 
         function addCustomAttribute() {
@@ -170,18 +208,25 @@
             const hairstyles = getArrayFromTextarea('hairstyles');
             const clothingStyles = getArrayFromTextarea('clothingStyles');
 
-            const face = faces[Math.floor(Math.random() * faces.length)];
-            const personality = personalities[Math.floor(Math.random() * personalities.length)];
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            const hairstyle = hairstyles[Math.floor(Math.random() * hairstyles.length)];
-            const clothing = clothingStyles[Math.floor(Math.random() * clothingStyles.length)];
             const gender = character === 'boy' ? 'male' : 'female';
-            const birthday = `${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}/${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`;
-            const age = Math.floor(Math.random() * 15) + 18;
+            
+            const positivePromptStart = document.getElementById('positivePromptStart').value;
+            const positivePromptEnd = document.getElementById('positivePromptEnd').value;
+            const positiveSystemPrompt = document.getElementById('positiveSystemPrompt').value;
+            const negativePromptStart = document.getElementById('negativePromptStart').value;
+            const negativePromptEnd = document.getElementById('negativePromptEnd').value;
+            const negativeSystemPrompt = document.getElementById('negativeSystemPrompt').value;
 
-            let prompt = `(best quality, masterpiece), 1${gender}, solo, upper body, (${color} color of ${clothing}), (delicate ${face}:1.2), ${color} color of ${hairstyle}, clean ${color} background, (${personality} personality), flat2D, (an extremely delicate and beautiful), (soft color:1.2), <lora:Ukiyo-e:0.4>`;
+            let promptParts = [
+                positiveSystemPrompt,
+                `1${gender}`,
+                `(${getRandomElement(colors)} color of ${getRandomElement(clothingStyles)})`,
+                `(delicate ${getRandomElement(faces)}:1.2)`,
+                `${getRandomElement(colors)} color of ${getRandomElement(hairstyles)}`,
+                `clean ${getRandomElement(colors)} background`,
+                `(${getRandomElement(personalities)} personality)`
+            ];
 
-            const customAttributes = {};
             document.querySelectorAll('.custom-attribute').forEach(attr => {
                 const nameInput = attr.querySelector('input[type="text"]');
                 const valueTextarea = attr.querySelector('textarea');
@@ -189,27 +234,16 @@
                     const name = nameInput.value.trim();
                     const values = getArrayFromTextarea(valueTextarea.id);
                     if (name && values.length > 0) {
-                        const value = values[Math.floor(Math.random() * values.length)];
-                        customAttributes[name] = value;
-                        prompt += `, ${name}: ${value}`;
+                        promptParts.push(`${name}: ${getRandomElement(values)}`);
                     }
                 }
             });
 
-            const fullPrompt = `--prompt "${prompt}" --negative_prompt "worst quality, low quality, bad_pictures"`;
+            const promptContent = promptParts.join(', ');
+            const positivePrompt = `${positivePromptStart}${promptContent}${positivePromptEnd}`;
+            const negativePrompt = `${negativePromptStart}${negativeSystemPrompt}${negativePromptEnd}`;
 
-            return {
-                prompt: fullPrompt,
-                gender: gender === 'male' ? 'Male' : 'Female',
-                color: color,
-                hairstyle: hairstyle,
-                clothing: clothing,
-                face: face,
-                personality: personality,
-                birthday: birthday,
-                age: age,
-                ...customAttributes
-            };
+            return `${positivePrompt} ${negativePrompt}`;
         }
 
         function generateBatchPrompts() {
@@ -237,64 +271,8 @@
         }
 
         function updatePreview() {
-            const previewHtml = allPrompts.slice(0, 5).map((prompt, index) => 
-                `<p><strong>${index + 1}:</strong> ${prompt.prompt}</p>`
-            ).join('');
-
-            document.getElementById('preview').innerHTML = previewHtml + 
-                (allPrompts.length > 5 ? `<p>... and ${allPrompts.length - 5} more prompts generated.</p>` : '');
-        }
-
-        function downloadTxt() {
-            if (allPrompts.length === 0) {
-                alert("Please generate prompts first.");
-                return;
-            }
-            const content = allPrompts.map(p => p.prompt + ',\nnext row\n').join('');
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'prompts.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function downloadCsv() {
-            if (allPrompts.length === 0) {
-                alert("Please generate prompts first.");
-                return;
-            }
-            const headers = ['Gender', 'Color', 'Hairstyle', 'Clothing Style', 'Face', 'Personality', 'Birthday', 'Age'];
-            const customAttributeNames = [];
-            document.querySelectorAll('.custom-attribute input[type="text"]').forEach(input => {
-                const name = input.value.trim();
-                if (name) {
-                    headers.push(name);
-                    customAttributeNames.push(name);
-                }
-            });
-
-            const csvContent = [
-                headers.join(','),
-                ...allPrompts.map(p => {
-                    const standardAttributes = [p.gender, p.color, p.hairstyle, p.clothing, p.face, p.personality, p.birthday, p.age];
-                    const customAttributeValues = customAttributeNames.map(name => p[name] || '');
-                    return [...standardAttributes, ...customAttributeValues].join(',');
-                })
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'prompts_attributes.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const previewContent = allPrompts.join(',\n');
+            document.getElementById('preview').textContent = previewContent;
         }
 
         // Update boy percentage display
